@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
     <title>SELEÇÃO DE POLTRONAS - COMISSÃO DE TRANSPORTE DE IBIMIRIM</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -12,35 +13,55 @@
             box-sizing: border-box;
         }
 
+        :root {
+            --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --glass-bg: rgba(255, 255, 255, 0.1);
+            --glass-border: rgba(255, 255, 255, 0.2);
+            --neon-green: #00ff9d;
+            --neon-blue: #00d4ff;
+            --neon-orange: #ff9f4a;
+            --dark-bg: #0a0e27;
+            --card-bg: rgba(15, 25, 45, 0.7);
+            --seat-available: linear-gradient(135deg, #2c3e50, #3498db);
+            --seat-selected: linear-gradient(135deg, #00ff9d, #00d4ff);
+            --seat-occupied: linear-gradient(135deg, #e74c3c, #c0392b);
+            --seat-unavailable: linear-gradient(135deg, #95a5a6, #7f8c8d);
+        }
+
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #e6f0ff 0%, #ffffff 100%);
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle at 20% 50%, rgba(102, 126, 234, 0.3) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: 0;
         }
 
         body.dark {
             background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-            color: #eee;
         }
 
-        body.dark .bus-card,
-        body.dark .passengers-section,
-        body.dark .copy-area,
-        body.dark .info {
-            background: #1e1e2e;
-            border-color: #2d2d44;
+        body.dark::before {
+            background: radial-gradient(circle at 20% 50%, rgba(0, 255, 157, 0.1) 0%, transparent 50%);
         }
 
-        body.dark .seat {
-            background: #2d2d44;
-            border-color: #3d3d5a;
-        }
-
-        /* Barra de Admin */
+        /* Barra de Admin - Glassmorphism */
         .admin-bar {
-            background: #1a1a2e;
+            background: rgba(10, 14, 39, 0.8);
+            backdrop-filter: blur(10px);
             color: white;
-            padding: 10px 20px;
+            padding: 12px 25px;
             display: none;
             justify-content: space-between;
             align-items: center;
@@ -49,6 +70,7 @@
             position: sticky;
             top: 0;
             z-index: 100;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
         }
 
         .admin-bar.active {
@@ -56,10 +78,16 @@
         }
 
         .admin-badge {
-            background: #ff6b6b;
+            background: linear-gradient(135deg, #ff6b6b, #ff4757);
             padding: 5px 12px;
             border-radius: 20px;
             font-size: 12px;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.8; transform: scale(1.05); }
         }
 
         /* Botões flutuantes */
@@ -82,26 +110,20 @@
             justify-content: center;
             cursor: pointer;
             box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-            transition: all 0.3s;
+            transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
             font-size: 24px;
             border: none;
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(10px);
+            color: white;
         }
 
         .float-btn:hover {
-            transform: scale(1.1);
+            transform: scale(1.1) rotate(5deg);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.4);
         }
 
-        .btn-admin {
-            background: #1a1a2e;
-            color: white;
-        }
-
-        .btn-theme {
-            background: #4a90e2;
-            color: white;
-        }
-
-        /* Modais */
+        /* Modais Glassmorphism */
         .modal-overlay {
             position: fixed;
             top: 0;
@@ -109,6 +131,7 @@
             width: 100%;
             height: 100%;
             background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(5px);
             display: none;
             justify-content: center;
             align-items: center;
@@ -117,21 +140,24 @@
 
         .modal-overlay.active {
             display: flex;
+            animation: fadeIn 0.3s ease;
         }
 
         .modal-content {
-            background: white;
+            background: rgba(15, 25, 45, 0.95);
+            backdrop-filter: blur(20px);
             border-radius: 20px;
             width: 90%;
             max-width: 500px;
             max-height: 80vh;
             overflow-y: auto;
             padding: 25px;
-            animation: fadeIn 0.3s ease;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
         }
 
         body.dark .modal-content {
-            background: #1e1e2e;
+            background: rgba(10, 14, 39, 0.95);
         }
 
         .modal-content.large {
@@ -144,16 +170,21 @@
             align-items: center;
             margin-bottom: 20px;
             padding-bottom: 10px;
-            border-bottom: 2px solid #cce4ff;
+            border-bottom: 2px solid var(--neon-blue);
         }
 
         .close-modal {
-            background: #ff6b6b;
+            background: linear-gradient(135deg, #ff6b6b, #ff4757);
             padding: 8px 15px;
             border: none;
             border-radius: 8px;
             cursor: pointer;
             color: white;
+            transition: transform 0.2s;
+        }
+
+        .close-modal:hover {
+            transform: scale(1.05);
         }
 
         @keyframes fadeIn {
@@ -166,49 +197,87 @@
             max-width: 1600px;
             margin: 0 auto;
             padding: 20px;
+            position: relative;
+            z-index: 1;
         }
 
         .main-title {
             text-align: center;
             margin-bottom: 30px;
+            animation: slideDown 0.5s ease;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
 
         .main-title h1 {
             font-size: 28px;
-            color: #333333;
+            color: white;
             margin-bottom: 5px;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.3);
         }
 
         /* Dashboard */
         .dashboard-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
             gap: 20px;
             margin-bottom: 20px;
         }
 
         .dashboard-card {
-            background: #eef4ff;
-            border-radius: 12px;
-            padding: 15px;
+            background: rgba(15, 25, 45, 0.7);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: transform 0.3s, box-shadow 0.3s;
+            color: white;
         }
 
-        body.dark .dashboard-card {
-            background: #25253a;
+        .dashboard-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
         }
 
         .occupation-bar {
-            background: #ddd;
+            background: rgba(255, 255, 255, 0.1);
             border-radius: 10px;
             padding: 10px;
             margin: 10px 0;
         }
 
         .occupation-fill {
-            background: #4caf50;
+            background: linear-gradient(90deg, var(--neon-green), var(--neon-blue));
             height: 8px;
             border-radius: 4px;
-            transition: width 0.5s;
+            transition: width 0.5s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .occupation-fill::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+            animation: shimmer 2s infinite;
+        }
+
+        @keyframes shimmer {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
         }
 
         /* Ônibus */
@@ -220,28 +289,74 @@
         }
 
         .bus-card {
-            background: white;
+            background: rgba(15, 25, 45, 0.7);
+            backdrop-filter: blur(10px);
             border-radius: 20px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
             overflow: hidden;
-            border: 1px solid #cce4ff;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            animation: fadeInUp 0.6s ease;
         }
 
-        body.dark .bus-card {
-            background: #1e1e2e;
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .bus-card:hover {
+            transform: translateY(-10px) scale(1.02);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+            border-color: rgba(0, 212, 255, 0.5);
         }
 
         .bus-header {
-            background: #d3d3d3;
-            color: #333;
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.3), rgba(118, 75, 162, 0.3));
             padding: 15px;
             text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .bus-header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+            animation: rotate 10s linear infinite;
+        }
+
+        @keyframes rotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
         }
 
         .bus-header .bus-owner {
             font-size: 24px;
             font-weight: bold;
-            color: #333333;
+            background: linear-gradient(135deg, #fff, #00d4ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            position: relative;
+            z-index: 1;
+        }
+
+        .bus-badge {
+            display: inline-block;
+            font-size: 12px;
+            padding: 3px 10px;
+            border-radius: 20px;
+            margin-top: 5px;
+            background: rgba(0,0,0,0.5);
+            color: white;
         }
 
         .bus-content {
@@ -250,51 +365,64 @@
 
         .seats {
             display: grid;
-            grid-template-columns: repeat(8, 1fr);
-            gap: 6px;
+            gap: 8px;
             margin: 15px 0;
         }
 
+        .seats.normal {
+            grid-template-columns: repeat(8, 1fr);
+        }
+
+        .seats.compact {
+            grid-template-columns: repeat(5, 1fr);
+        }
+
         .seat {
-            background: #e8e8e8;
-            border: 1px solid #999;
-            border-radius: 8px;
-            padding: 8px 3px;
+            background: linear-gradient(135deg, #2c3e50, #3498db);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+            padding: 10px 5px;
             text-align: center;
             cursor: pointer;
             font-weight: bold;
             font-size: 12px;
             position: relative;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            transition: all 0.2s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            color: white;
             display: flex;
             align-items: center;
             justify-content: center;
-            min-height: 40px;
+            gap: 5px;
         }
 
         .seat::before {
-            content: '🪑';
-            font-size: 16px;
-            margin-right: 3px;
-            opacity: 0.6;
+            content: '💺';
+            font-size: 14px;
+            opacity: 0.8;
+        }
+
+        .seat:hover:not(.occupied):not(.unavailable) {
+            transform: scale(1.1);
+            box-shadow: 0 5px 15px rgba(0,212,255,0.4);
         }
 
         .seat.selected {
-            background: #4caf50;
-            color: white;
+            background: linear-gradient(135deg, #00ff9d, #00d4ff);
+            animation: pulse 0.5s ease;
+            box-shadow: 0 0 15px rgba(0,255,157,0.5);
         }
 
         .seat.occupied {
-            background: #ff6b6b;
-            color: white;
+            background: linear-gradient(135deg, #e74c3c, #c0392b);
             cursor: not-allowed;
-            text-decoration: line-through;
+            opacity: 0.7;
+            filter: grayscale(0.2);
         }
 
         .seat.unavailable {
-            background: #d4d4d4;
-            color: #999;
+            background: linear-gradient(135deg, #95a5a6, #7f8c8d);
             cursor: not-allowed;
+            opacity: 0.5;
         }
 
         .legend {
@@ -310,6 +438,7 @@
             display: flex;
             align-items: center;
             gap: 5px;
+            color: white;
         }
 
         .legend-color {
@@ -321,49 +450,70 @@
         .info {
             margin: 15px 0;
             padding: 12px;
-            background: #eef4ff;
+            background: rgba(255, 255, 255, 0.05);
             border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: white;
+        }
+
+        .info h4 {
+            color: white;
         }
 
         input {
             width: 100%;
             padding: 10px;
             margin: 8px 0;
-            border: 1px solid #b8d4ff;
+            border: 1px solid rgba(255, 255, 255, 0.2);
             border-radius: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            transition: all 0.3s;
         }
 
-        body.dark input {
-            background: #2d2d44;
-            border-color: #3d3d5a;
-            color: white;
+        input:focus {
+            outline: none;
+            border-color: var(--neon-blue);
+            box-shadow: 0 0 10px rgba(0,212,255,0.3);
+        }
+
+        input::placeholder {
+            color: rgba(255, 255, 255, 0.5);
         }
 
         button {
-            background: #4a90e2;
+            background: linear-gradient(135deg, #667eea, #764ba2);
             color: white;
             border: none;
             padding: 10px 15px;
             border-radius: 8px;
             cursor: pointer;
             font-weight: bold;
-            transition: all 0.2s;
+            transition: all 0.3s;
+            margin: 5px;
         }
 
         button:hover {
-            background: #0066cc;
-            transform: translateY(-1px);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102,126,234,0.4);
         }
 
-        .btn-green { background: #4caf50; }
-        .btn-red { background: #ff6b6b; }
-        .btn-orange { background: #ff9800; }
+        .btn-green { background: linear-gradient(135deg, #00ff9d, #00d4ff); }
+        .btn-red { background: linear-gradient(135deg, #ff6b6b, #ff4757); }
+        .btn-orange { background: linear-gradient(135deg, #ff9f4a, #ff6b6b); }
 
         .passengers-section {
-            background: white;
+            background: rgba(15, 25, 45, 0.7);
+            backdrop-filter: blur(10px);
             border-radius: 20px;
             padding: 20px;
             margin-top: 30px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: white;
+        }
+
+        .passengers-section h2 {
+            color: white;
         }
 
         .stats {
@@ -374,20 +524,23 @@
         }
 
         .stat-card {
-            background: #eef4ff;
+            background: rgba(255, 255, 255, 0.05);
             padding: 10px 15px;
             border-radius: 10px;
             font-size: 14px;
+            color: white;
         }
 
         .stat-number {
             font-size: 22px;
             font-weight: bold;
-            color: #ff9800;
+            background: linear-gradient(135deg, #00ff9d, #00d4ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
         }
 
         .passenger-card {
-            border: 1px solid #cce4ff;
+            border: 1px solid rgba(255, 255, 255, 0.1);
             margin: 10px 0;
             padding: 12px;
             border-radius: 10px;
@@ -396,10 +549,18 @@
             align-items: center;
             flex-wrap: wrap;
             gap: 10px;
+            background: rgba(255, 255, 255, 0.03);
+            transition: all 0.3s;
+            color: white;
+        }
+
+        .passenger-card:hover {
+            transform: translateX(5px);
+            background: rgba(255, 255, 255, 0.08);
         }
 
         .delete-btn {
-            background: #ff6b6b;
+            background: linear-gradient(135deg, #ff6b6b, #ff4757);
             padding: 5px 12px;
         }
 
@@ -413,20 +574,28 @@
         .copy-area {
             margin-top: 20px;
             padding: 15px;
-            background: #eef4ff;
+            background: rgba(15, 25, 45, 0.7);
+            backdrop-filter: blur(10px);
             border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: white;
+        }
+
+        .copy-area h3 {
+            color: white;
         }
 
         .copy-text {
-            background: white;
+            background: rgba(0, 0, 0, 0.3);
             padding: 15px;
             border-radius: 8px;
-            font-family: Arial, sans-serif;
-            font-size: 16px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
             font-weight: bold;
             white-space: pre-wrap;
             max-height: 300px;
             overflow-y: auto;
+            color: #00ff9d;
         }
 
         .message {
@@ -437,28 +606,79 @@
             border-radius: 8px;
             display: none;
             z-index: 2000;
-            animation: slideIn 0.3s ease-out;
+            animation: slideInLeft 0.3s ease-out;
+            background: rgba(15, 25, 45, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white;
         }
 
-        @keyframes slideIn {
+        @keyframes slideInLeft {
             from { transform: translateX(-100%); opacity: 0; }
             to { transform: translateX(0); opacity: 1; }
         }
 
-        .message.success { background: #4caf50; color: white; }
-        .message.error { background: #ff6b6b; color: white; }
-        .message.info { background: #2196f3; color: white; }
+        .message.success { border-left: 4px solid #00ff9d; }
+        .message.error { border-left: 4px solid #ff6b6b; }
+        .message.info { border-left: 4px solid #00d4ff; }
+
+        .footer {
+            text-align: center;
+            padding: 20px;
+            margin-top: 35px;
+            background: rgba(10, 14, 39, 0.5);
+            backdrop-filter: blur(10px);
+            color: white;
+            font-weight: 600;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .footer .girl {
+            display: inline-block;
+            margin-left: 10px;
+            animation: wiggle 1s infinite ease-in-out;
+            font-size: 24px;
+        }
+        
+        .subtext {
+            margin-top: 8px;
+            font-size: 14px;
+            opacity: 0.8;
+        }
+        
+        @keyframes wiggle {
+            0%, 100% { transform: translateY(0) rotate(0deg); }
+            25% { transform: translateY(-3px) rotate(-2deg); }
+            50% { transform: translateY(-5px) rotate(2deg); }
+            75% { transform: translateY(-3px) rotate(-1deg); }
+        }
+
+        .search-box {
+            width: 250px;
+            padding: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+        }
+
+        .search-box::placeholder {
+            color: rgba(255, 255, 255, 0.5);
+        }
+
+        canvas {
+            max-height: 200px;
+        }
 
         @media (max-width: 1000px) {
             .buses-container { grid-template-columns: repeat(2, 1fr); }
         }
         @media (max-width: 700px) {
             .buses-container { grid-template-columns: 1fr; }
-            .seats { grid-template-columns: repeat(4, 1fr); }
         }
     </style>
 </head>
-<body class="light">
+<body>
     <!-- Barra de Admin -->
     <div id="adminBar" class="admin-bar">
         <div class="admin-info">
@@ -505,6 +725,7 @@
                     <button onclick="clearBusReservations('maciel')" style="background: #ff9800;">🗑️ Limpar Maciel</button>
                     <button onclick="clearBusReservations('felipe')" style="background: #4caf50;">🗑️ Limpar Felipe</button>
                     <button onclick="clearBusReservations('robson')" style="background: #2196f3;">🗑️ Limpar Robson</button>
+                    <button onclick="clearBusReservations('compact')" style="background: #ff6b6b;">🗑️ Limpar Vagas Apertadas</button>
                 </div>
             </div>
             <div>
@@ -518,10 +739,10 @@
     <div class="container">
         <div class="main-title">
             <h1>SELEÇÃO DE POLTRONAS - COMISSÃO DE TRANSPORTE DE IBIMIRIM</h1>
-            <p>Sistema de reserva de poltronas</p>
+            <p>Sistema avançado de reserva de poltronas com tecnologia em tempo real</p>
         </div>
 
-        <!-- Dashboard -->
+        <!-- Dashboard com Gráfico -->
         <div class="dashboard-grid" id="dashboardGrid"></div>
 
         <!-- Ônibus -->
@@ -531,7 +752,7 @@
         <div class="passengers-section">
             <div class="passengers-header">
                 <h2>📋 LISTA DE PASSAGEIROS</h2>
-                <input type="text" id="searchPassenger" class="search-box" placeholder="🔍 Buscar..." onkeyup="applyFilters()" style="padding: 10px; width: 250px; border: 1px solid #b8d4ff; border-radius: 8px;">
+                <input type="text" id="searchPassenger" class="search-box" placeholder="🔍 Buscar por nome, telefone ou ônibus..." onkeyup="applyFilters()">
             </div>
 
             <div class="stats" id="stats"></div>
@@ -556,44 +777,12 @@
     <div class="footer">
         <span>Créditos: Maria Viviane Victória Pereira Rodrigues</span>
         <span class="girl">👩🏻‍🦱</span>
-        <div class="subtext">Engenheira de Software</div>
+        <div class="subtext">Engenheira de Software | Sistema em Tempo Real</div>
     </div>
     <div id="message" class="message"></div>
 
-    <style>
-        .footer {
-            text-align: center;
-            padding: 12px;
-            margin-top: 35px;
-            background: #f5f5f5;
-            color: #333;
-            font-weight: 600;
-            border-top: 1px solid #ddd;
-        }
-        .footer .girl {
-            display: inline-block;
-            margin-left: 10px;
-            color: #fff;
-            text-shadow: 0 0 4px rgba(0,0,0,0.5);
-            animation: wiggle 1s infinite ease-in-out;
-            font-size: 24px;
-        }
-        .subtext {
-            margin-top: 8px;
-            font-size: 14px;
-            color: #333;
-            font-weight: 600;
-        }
-        @keyframes wiggle {
-            0%, 100% { transform: translateY(0) rotate(0deg); }
-            25% { transform: translateY(-3px) rotate(-2deg); }
-            50% { transform: translateY(-5px) rotate(2deg); }
-            75% { transform: translateY(-3px) rotate(-1deg); }
-        }
-    </style>
-
     <script>
-        // ============ CONFIGURAÇÕES SUPABASE (SUAS CREDENCIAIS) ============
+        // ============ CONFIGURAÇÕES SUPABASE ============
         const SUPABASE_URL = 'https://fmytzcxdiehidxkyzuzb.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZteXR6Y3hkaWVoaWR4a3l6dXpiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ1NDM4ODYsImV4cCI6MjA5MDExOTg4Nn0.npoxw3rFLBHlEJIw_KgvbautDkjvz3Sm2CR5Id0Y3Uk';
         
@@ -601,27 +790,31 @@
         
         const ADMIN_PASSWORD = 'admin123';
         let isAdminLogged = false;
+        let chart = null;
         
-        // Lista de poltronas disponíveis (40 poltronas)
+        // Assentos disponíveis
         const availableSeatsList = [1, 2, 4, 5, 7, 8, 10, 11, 13, 14, 16, 17, 19, 20, 22, 23, 25, 26, 28, 29, 31, 32, 34, 35, 37, 38, 40, 41, 43, 44, 46, 47, 49, 50, 52, 53, 55, 56, 58, 59];
+        const compactSeatsList = Array.from({length: 20}, (_, i) => i + 1);
         
         const buses = {
-            maciel: { id: 'maciel', name: 'MACIEL', color: '#ff9800',
+            maciel: { id: 'maciel', name: 'MACIEL', color: '#ff9800', type: 'normal', seatCount: 40,
                 availableSeats: new Set(availableSeatsList),
                 occupiedSeats: new Set(), reservations: [] },
-            felipe: { id: 'felipe', name: 'FELIPE', color: '#4caf50',
+            felipe: { id: 'felipe', name: 'FELIPE', color: '#4caf50', type: 'normal', seatCount: 40,
                 availableSeats: new Set(availableSeatsList),
                 occupiedSeats: new Set(), reservations: [] },
-            robson: { id: 'robson', name: 'ROBSON', color: '#2196f3',
+            robson: { id: 'robson', name: 'ROBSON', color: '#2196f3', type: 'normal', seatCount: 40,
                 availableSeats: new Set(availableSeatsList),
+                occupiedSeats: new Set(), reservations: [] },
+            compact: { id: 'compact', name: 'VAGAS APERTADAS', color: '#ff6b6b', type: 'compact', seatCount: 20,
+                availableSeats: new Set(compactSeatsList),
                 occupiedSeats: new Set(), reservations: [] }
         };
         
-        let selectedSeats = { maciel: new Set(), felipe: new Set(), robson: new Set() };
+        let selectedSeats = { maciel: new Set(), felipe: new Set(), robson: new Set(), compact: new Set() };
         
         // ============ FUNÇÕES DO SUPABASE ============
         
-        // Carregar reservas do Supabase
         async function loadReservations() {
             try {
                 const { data, error } = await supabaseClient
@@ -637,45 +830,47 @@
                 return data || [];
             } catch (err) {
                 console.error('Erro de conexão:', err);
-                showMessage('Erro de conexão com o Supabase. Verifique sua internet.', 'error');
+                showMessage('Erro de conexão com o Supabase.', 'error');
                 return [];
             }
         }
         
-        // Carregar dados para os ônibus
         async function loadBusData() {
             const reservations = await loadReservations();
             
-            // Limpar ocupações atuais
             for (let busId in buses) {
                 buses[busId].occupiedSeats.clear();
                 buses[busId].reservations = [];
             }
             
-            // Preencher com dados do banco
             reservations.forEach(res => {
-                const busId = res.bus_name === 'MACIEL' ? 'maciel' : 
-                             res.bus_name === 'FELIPE' ? 'felipe' : 'robson';
+                let busId = null;
+                if (res.bus_name === 'MACIEL') busId = 'maciel';
+                else if (res.bus_name === 'FELIPE') busId = 'felipe';
+                else if (res.bus_name === 'ROBSON') busId = 'robson';
+                else if (res.bus_name === 'VAGAS APERTADAS') busId = 'compact';
                 
-                res.seats.forEach(seat => {
-                    buses[busId].occupiedSeats.add(seat);
-                });
-                
-                buses[busId].reservations.push({
-                    id: res.id,
-                    passengerName: res.passenger_name,
-                    passengerPhone: res.passenger_phone,
-                    seats: res.seats,
-                    bus: res.bus_name,
-                    date: new Date(res.created_at).toLocaleString('pt-BR')
-                });
+                if (busId && buses[busId]) {
+                    res.seats.forEach(seat => {
+                        buses[busId].occupiedSeats.add(seat);
+                    });
+                    
+                    buses[busId].reservations.push({
+                        id: res.id,
+                        passengerName: res.passenger_name,
+                        passengerPhone: res.passenger_phone,
+                        seats: res.seats,
+                        bus: res.bus_name,
+                        date: new Date(res.created_at).toLocaleString('pt-BR')
+                    });
+                }
             });
             
             renderBuses();
             refreshAllLists();
+            updateChart();
         }
         
-        // Função de reserva (com proteção contra duplicatas)
         async function confirmReservation(busId) {
             if (selectedSeats[busId].size === 0) {
                 showMessage('Selecione pelo menos uma poltrona!', 'error');
@@ -696,7 +891,6 @@
             
             const seatsList = Array.from(selectedSeats[busId]).sort((a,b)=>a-b);
             
-            // Verificar se alguma poltrona já está ocupada (segurança extra)
             let conflict = false;
             for (let seat of seatsList) {
                 if (buses[busId].occupiedSeats.has(seat)) {
@@ -706,7 +900,7 @@
             }
             
             if (conflict) {
-                showMessage('⚠️ Alguma poltrona foi reservada por outra pessoa! Atualize a página.', 'error');
+                showMessage('⚠️ Alguma poltrona foi reservada por outra pessoa!', 'error');
                 selectedSeats[busId].clear();
                 updateDisplay(busId);
                 await loadBusData();
@@ -714,41 +908,33 @@
             }
             
             try {
-                // Tenta inserir no banco
-                const { data, error } = await supabaseClient
+                const { error } = await supabaseClient
                     .from('reservations')
                     .insert({
                         passenger_name: name.toUpperCase(),
                         passenger_phone: phone,
                         bus_name: buses[busId].name,
                         seats: seatsList
-                    })
-                    .select();
+                    });
                 
                 if (error) {
                     console.error('Erro ao inserir:', error);
-                    if (error.code === '23505') {
-                        showMessage('⚠️ Esta poltrona já foi reservada por outra pessoa!', 'error');
-                    } else {
-                        showMessage('Erro ao salvar reserva: ' + error.message, 'error');
-                    }
+                    showMessage('Erro ao salvar reserva: ' + error.message, 'error');
                     await loadBusData();
                     return;
                 }
                 
                 showMessage(`✅ Reserva confirmada! Poltronas: ${seatsList.join(', ')}`, 'success');
                 
-                // Limpar seleção
                 selectedSeats[busId].clear();
                 document.getElementById(`name_${busId}`).value = '';
                 document.getElementById(`phone_${busId}`).value = '';
                 
-                // Recarregar dados
                 await loadBusData();
                 
             } catch (err) {
                 console.error('Erro de rede:', err);
-                showMessage('Erro de conexão. Verifique sua internet.', 'error');
+                showMessage('Erro de conexão.', 'error');
             }
         }
         
@@ -757,7 +943,6 @@
             updateDisplay(busId);
         }
         
-        // Apagar reserva (apenas admin)
         async function deleteReservation(busName, id) {
             if (!isAdminLogged) {
                 showMessage('Acesso negado! Faça login como administrador.', 'error');
@@ -781,10 +966,9 @@
             }
         }
         
-        // Apagar reservas de um ônibus específico
         async function clearBusReservations(busId) {
             if (!isAdminLogged) {
-                showMessage('Acesso negado! Faça login como administrador.', 'error');
+                showMessage('Acesso negado!', 'error');
                 return;
             }
             const busName = buses[busId].name;
@@ -808,10 +992,9 @@
             }
         }
         
-        // Apagar todas as reservas
         async function clearAllReservations() {
             if (!isAdminLogged) {
-                showMessage('Acesso negado! Faça login como administrador.', 'error');
+                showMessage('Acesso negado!', 'error');
                 return;
             }
             
@@ -834,35 +1017,32 @@
             }
         }
         
-        // ============ FUNÇÕES DO SITE ============
-        
-        function normalizeText(text) {
-            return text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().trim();
-        }
+        // ============ FUNÇÕES DE UI ============
         
         function createSeats(busId) {
             const container = document.getElementById(`seats_${busId}`);
             if (!container) return;
             container.innerHTML = '';
             
-            for (let i = 1; i <= 60; i++) {
+            const bus = buses[busId];
+            const seatNumbers = Array.from(bus.availableSeats).sort((a,b)=>a-b);
+            
+            seatNumbers.forEach(num => {
                 const seat = document.createElement('div');
                 seat.className = 'seat';
-                seat.textContent = i;
+                seat.textContent = num;
                 
-                if (!buses[busId].availableSeats.has(i)) {
-                    seat.classList.add('unavailable');
-                } else if (buses[busId].occupiedSeats.has(i)) {
+                if (bus.occupiedSeats.has(num)) {
                     seat.classList.add('occupied');
                 }
-                if (selectedSeats[busId].has(i)) {
+                if (selectedSeats[busId].has(num)) {
                     seat.classList.add('selected');
                 }
-                if (buses[busId].availableSeats.has(i) && !buses[busId].occupiedSeats.has(i)) {
-                    seat.onclick = () => toggleSeat(busId, i);
+                if (!bus.occupiedSeats.has(num)) {
+                    seat.onclick = () => toggleSeat(busId, num);
                 }
                 container.appendChild(seat);
-            }
+            });
         }
         
         function toggleSeat(busId, num) {
@@ -878,7 +1058,7 @@
             createSeats(busId);
             const div = document.getElementById(`selectedSeats_${busId}`);
             const seats = Array.from(selectedSeats[busId]).sort((a,b)=>a-b);
-            div.innerHTML = seats.length ? `Poltronas: ${seats.join(', ')}` : 'Nenhuma';
+            div.innerHTML = seats.length ? `✨ Poltronas: ${seats.join(', ')}` : 'Nenhuma poltrona selecionada';
         }
         
         function getAllReservations() {
@@ -930,18 +1110,19 @@
         function updateStats() {
             const all = getAllReservations();
             const unique = new Set();
-            all.forEach(r => unique.add(normalizeText(r.passengerName)));
+            all.forEach(r => unique.add(r.passengerName));
             document.getElementById('stats').innerHTML = `
                 <div class="stat-card">👥 Total Reservas: <span class="stat-number">${all.length}</span></div>
                 <div class="stat-card">👤 Pessoas Únicas: <span class="stat-number">${unique.size}</span></div>
-                <div class="stat-card">🚌 Maciel: <span class="stat-number">${buses.maciel.reservations.length}</span></div>
-                <div class="stat-card">🚌 Felipe: <span class="stat-number">${buses.felipe.reservations.length}</span></div>
-                <div class="stat-card">🚌 Robson: <span class="stat-number">${buses.robson.reservations.length}</span></div>
+                <div class="stat-card">📌 Maciel: <span class="stat-number">${buses.maciel.reservations.length}</span></div>
+                <div class="stat-card">📌 Felipe: <span class="stat-number">${buses.felipe.reservations.length}</span></div>
+                <div class="stat-card">📌 Robson: <span class="stat-number">${buses.robson.reservations.length}</span></div>
+                <div class="stat-card">⚡ Vagas Apertadas: <span class="stat-number">${buses.compact.reservations.length}</span></div>
             `;
         }
         
         function updateDashboard() {
-            const totalSeats = availableSeatsList.length * 3;
+            const totalSeats = (availableSeatsList.length * 3) + 20;
             let totalOccupied = 0;
             for (let busId in buses) totalOccupied += buses[busId].occupiedSeats.size;
             const occupancyPercent = (totalOccupied / totalSeats * 100).toFixed(1);
@@ -958,12 +1139,51 @@
                     </div>
                 </div>
                 <div class="dashboard-card">
-                    <h4>🚌 Ocupação por Ônibus</h4>
+                    <h4>📌 Ocupação por Ônibus</h4>
                     <div><strong>Maciel:</strong> ${buses.maciel.occupiedSeats.size} / ${availableSeatsList.length}</div>
                     <div><strong>Felipe:</strong> ${buses.felipe.occupiedSeats.size} / ${availableSeatsList.length}</div>
                     <div><strong>Robson:</strong> ${buses.robson.occupiedSeats.size} / ${availableSeatsList.length}</div>
+                    <div><strong>⚡ Vagas Apertadas:</strong> ${buses.compact.occupiedSeats.size} / 20</div>
+                </div>
+                <div class="dashboard-card">
+                    <h4>📈 Gráfico de Ocupação</h4>
+                    <canvas id="occupationChart" style="max-height: 200px;"></canvas>
                 </div>
             `;
+            setTimeout(() => updateChart(), 100);
+        }
+        
+        function updateChart() {
+            const ctx = document.getElementById('occupationChart');
+            if (!ctx) return;
+            
+            if (chart) chart.destroy();
+            
+            chart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Maciel', 'Felipe', 'Robson', 'Vagas Apertadas'],
+                    datasets: [{
+                        data: [
+                            buses.maciel.occupiedSeats.size,
+                            buses.felipe.occupiedSeats.size,
+                            buses.robson.occupiedSeats.size,
+                            buses.compact.occupiedSeats.size
+                        ],
+                        backgroundColor: ['#ff9800', '#4caf50', '#2196f3', '#ff6b6b'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: {
+                            labels: { color: 'white' }
+                        }
+                    }
+                }
+            });
         }
         
         function updateCopyText() {
@@ -973,10 +1193,10 @@
                 return;
             }
             let text = `=${'='.repeat(60)}\nLISTA DE PASSAGEIROS\n${'='.repeat(60)}\n\n`;
-            ['MACIEL', 'FELIPE', 'ROBSON'].forEach(bus => {
+            ['MACIEL', 'FELIPE', 'ROBSON', 'VAGAS APERTADAS'].forEach(bus => {
                 const busRes = all.filter(r => r.bus === bus);
                 if (busRes.length) {
-                    text += `\n🚌 ÔNIBUS ${bus}\n${'-'.repeat(40)}\n`;
+                    text += `\n📌 ÔNIBUS ${bus}\n${'-'.repeat(40)}\n`;
                     busRes.forEach((r, i) => text += `${i+1}. ${r.passengerName}\n   📞 ${r.passengerPhone} | 💺 ${r.seats.join(', ')} | 📅 ${r.date}\n`);
                 }
             });
@@ -987,7 +1207,7 @@
         function copyToClipboard() {
             const text = document.getElementById('copyText').innerHTML.replace(/<br>/g, '\n');
             navigator.clipboard.writeText(text);
-            showMessage('Lista copiada!', 'success');
+            showMessage('📋 Lista copiada para a área de transferência!', 'success');
         }
         
         function copyCompleteList() { copyToClipboard(); }
@@ -1006,18 +1226,18 @@
             a.href = URL.createObjectURL(blob);
             a.download = `reservas_${new Date().toISOString().slice(0,10)}.csv`;
             a.click();
-            showMessage('Exportado!', 'success');
+            showMessage('📊 Arquivo exportado com sucesso!', 'success');
         }
         
         function printList() {
             const all = getAllReservations();
             if (all.length === 0) { showMessage('Nenhuma reserva!', 'error'); return; }
-            let html = `<html><head><title>Lista de Passageiros</title><style>body{font-family:Arial;margin:20px}table{border-collapse:collapse;width:100%}th,td{border:1px solid #ddd;padding:8px}th{background:#0066cc;color:white}</style></head><body>
+            let html = `<html><head><title>Lista de Passageiros</title><style>body{font-family:Arial;margin:20px}table{border-collapse:collapse;width:100%}th,td{border:1px solid #ddd;padding:8px}th{background:#667eea;color:white}</style></head><body>
             <h1>Lista de Passageiros</h1>
             <p>Data: ${new Date().toLocaleString()}</p>
             <table border="1" cellpadding="8" cellspacing="0" style="width:100%; border-collapse:collapse;">
                 <thead>
-                    <tr style="background:#0066cc; color:white;"><th>#</th><th>NOME</th><th>TELEFONE</th><th>ÔNIBUS</th><th>POLTRONAS</th>  </tr>
+                    <tr style="background:#667eea; color:white;"><th>#</th><th>NOME</th><th>TELEFONE</th><th>ÔNIBUS</th><th>POLTRONAS</th></tr>
                 </thead>
                 <tbody>`;
             all.forEach((r, i) => html += `<tr><td>${i+1}</td><td>${r.passengerName}</td><td>${r.passengerPhone}</td><td>${r.bus}</td><td>${r.seats.join(', ')}</td></tr>`);
@@ -1034,27 +1254,28 @@
             a.href = URL.createObjectURL(blob);
             a.download = `backup_${new Date().toISOString().slice(0,19)}.json`;
             a.click();
-            showMessage('Backup exportado!', 'success');
+            showMessage('💾 Backup exportado!', 'success');
         }
         
         function renderBuses() {
             const container = document.getElementById('busesContainer');
             container.innerHTML = '';
-            ['maciel', 'felipe', 'robson'].forEach(busId => {
+            ['maciel', 'felipe', 'robson', 'compact'].forEach(busId => {
                 const bus = buses[busId];
+                const seatClass = bus.type === 'compact' ? 'seats compact' : 'seats normal';
                 container.innerHTML += `
                     <div class="bus-card">
-                        <div class="bus-header" style="background: #d3d3d3;">
-                            <div class="bus-owner">🚌 ${bus.name}</div>
+                        <div class="bus-header">
+                            <div class="bus-owner">${bus.name}</div>
+                            <div class="bus-badge">${bus.type === 'compact' ? '⚡ 20 vagas apertadas' : '✨ 40 poltronas'}</div>
                         </div>
                         <div class="bus-content">
                             <div class="legend">
-                                <div class="legend-item"><span class="legend-color" style="background:#e8f0fe;"></span> Disponível</div>
-                                <div class="legend-item"><span class="legend-color" style="background:#4caf50;"></span> Selecionada</div>
-                                <div class="legend-item"><span class="legend-color" style="background:#ff6b6b;"></span> Ocupada</div>
-                                <div class="legend-item"><span class="legend-color" style="background:#d4d4d4;"></span> Indisponível</div>
+                                <div class="legend-item"><span class="legend-color" style="background: linear-gradient(135deg, #2c3e50, #3498db);"></span> Disponível</div>
+                                <div class="legend-item"><span class="legend-color" style="background: linear-gradient(135deg, #00ff9d, #00d4ff);"></span> Selecionada</div>
+                                <div class="legend-item"><span class="legend-color" style="background: linear-gradient(135deg, #e74c3c, #c0392b);"></span> Ocupada</div>
                             </div>
-                            <div id="seats_${busId}" class="seats"></div>
+                            <div id="seats_${busId}" class="${seatClass}"></div>
                             <div class="info">
                                 <h4>📍 Poltronas selecionadas:</h4>
                                 <div id="selectedSeats_${busId}">Nenhuma</div>
@@ -1067,7 +1288,7 @@
                     </div>
                 `;
             });
-            ['maciel', 'felipe', 'robson'].forEach(busId => createSeats(busId));
+            ['maciel', 'felipe', 'robson', 'compact'].forEach(busId => createSeats(busId));
         }
         
         // ============ ADMIN ============
@@ -1089,7 +1310,7 @@
                 closeAdminLogin();
                 document.getElementById('adminBar').classList.add('active');
                 refreshAllLists();
-                showMessage('Modo Administrador ativado!', 'success');
+                showMessage('🔐 Modo Administrador ativado!', 'success');
             } else {
                 document.getElementById('adminLoginError').textContent = 'Senha incorreta!';
             }
@@ -1110,8 +1331,8 @@
             }
             const all = getAllReservations();
             document.getElementById('adminReservationsList').innerHTML = all.map(r => `
-                <div style="border:1px solid #ccc;margin:10px;padding:10px;border-radius:8px;">
-                    <strong>${r.passengerName}</strong><br>📞 ${r.passengerPhone}<br>🚌 ${r.bus} | 💺 ${r.seats.join(', ')}<br>📅 ${r.date}<br>
+                <div style="border:1px solid rgba(255,255,255,0.1);margin:10px;padding:10px;border-radius:8px;background:rgba(255,255,255,0.05);color:white;">
+                    <strong>${r.passengerName}</strong><br>📞 ${r.passengerPhone}<br>📌 ${r.bus} | 💺 ${r.seats.join(', ')}<br>📅 ${r.date}<br>
                     <button onclick="deleteReservation('${r.bus}', ${r.id})" style="background:#ff6b6b;margin-top:5px;">🗑️ Apagar</button>
                 </div>
             `).join('') || '<p>Nenhuma reserva</p>';
@@ -1123,14 +1344,12 @@
         }
         
         function toggleTheme() {
-            document.body.classList.toggle('light');
             document.body.classList.toggle('dark');
             localStorage.setItem('theme', document.body.classList.contains('dark') ? 'dark' : 'light');
         }
         
         function loadTheme() {
             if (localStorage.getItem('theme') === 'dark') {
-                document.body.classList.remove('light');
                 document.body.classList.add('dark');
             }
         }
@@ -1155,10 +1374,9 @@
         async function init() {
             loadTheme();
             await loadBusData();
-            renderBuses();
             checkAdminSession();
             refreshAllLists();
-            showMessage('✅ Sistema conectado ao Supabase! Reservas seguras em tempo real.', 'success');
+            showMessage('✅ Sistema conectado! Reservas em tempo real.', 'success');
         }
         
         init();
